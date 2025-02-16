@@ -27,7 +27,7 @@ while True:
         print(f"\r{timestamp} Temperature: {temperature:.2f}°C | Pressure: {pressure:.2f} hPa | Humidity: {humidity:.2f}%  ", end="", flush=True)
 
         with open(f'{date}-bme280-data.csv', 'a') as f:
-            f.write(f'{timestamp},{temperature:.0f},{pressure:.0f},{humidity:.0f}\n')
+            f.write(f'{timestamp},{temperature:.1f},{pressure:.1f},{humidity:.1f}\n')
         time.sleep(poll_period)
     except KeyboardInterrupt:
         print(f'{timestamp} Program stopped')
