@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BME280 Environmental Dashboard</title>
+  <script src="chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .chart-container {
+      position: relative;
+      height: 300px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>BME280 Environmental Dashboard</h1>
+      <input type="date" id="datePicker" style="height: 30px; width: 120px;" />
+    </div>
+    <div class="container">
+      <p><strong><span id="ipAddress">87.74.153.59</span></strong> (<span id="ipUpdate">Sun Feb 16 16:24:01 GMT 2025</span>)</p>
+    </div>
+    <div class="chart-container">
+      <canvas id="dataChartTemperature"></canvas>
+      <canvas id="dataChartHumidity"></canvas>
+      <canvas id="dataChartPressure"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Utility function to get current date in YYYY-MM-DD format
+    function getCurrentDate() {
+      const today = new Date();
+      const year = today.getFullYear();
+      let month = today.getMonth() + 1;
+      let day = today.getDate();
+      month = month < 10 ? '0' + month : month;
+      day = day < 10 ? '0' + day : day;
+      return `${year}-${month}-${day}`;
+    }
+
+    // Simple CSV parser: splits text by newlines and commas
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const data = [];
+      for (const line of lines) {
+        // Each line: datetime, temperature, pressure, humidity
+        const parts = line.split(',');
+        if (parts.length >= 4) {
+          const [datetime, temperature, pressure, humidity] = parts;
+          data.push({
+            datetime: datetime,
+            temperature: parseFloat(temperature),
+            pressure: parseFloat(pressure),
+            humidity: parseFloat(humidity)
+          });
+        }
+      }
+      return data;
+    }
+
+    // Global chart instance to allow updates
+    let chartInstanceTemperature = null;
+    let chartInstanceHumidity = null;
+    let chartInstancePressure = null;
+
+    // Function to render (or update) the chart using Chart.js
+    function renderChart(data) {
+      // Extract time labels (using the time part only)
+      const labels = data.map(entry => entry.datetime.split(' ')[1]);
+      const temperatures = data.map(entry => entry.temperature);
+      const pressures = data.map(entry => entry.pressure);
+      const humidities = data.map(entry => entry.humidity);
+      
+      const ctxTemperature = document.getElementById('dataChartTemperature').getContext('2d');
+      const ctxHumidity = document.getElementById('dataChartHumidity').getContext('2d');
+      const ctxPressure = document.getElementById('dataChartPressure').getContext('2d');
+
+      // Destroy previous chart instance if it exists
+      if (chartInstanceTemperature) {
+        chartInstanceTemperature.destroy();
+      }
+      if (chartInstanceHumidity) {
+        chartInstanceHumidity.destroy();
+      }
+      if (chartInstancePressure) {
+        chartInstancePressure.destroy();
+      }
+      
+      chartInstanceTemperature = new Chart(ctxTemperature, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Temperature (°C)',
+            data: temperatures,
+            borderColor: 'red',
+            yAxisID: 'y',
+            fill: false,
+            tension: 0.5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Temperature (°C)'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true
+            }
+          }
+        }
+      });
+
+      chartInstanceHumidity = new Chart(ctxHumidity, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Humidity (%)',
+            data: humidities,
+            borderColor: 'blue',
+            yAxisID: 'y',
+            fill: false,
+            tension: 0.5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Humidity (%)'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true
+            }
+          }
+        }
+      });
+
+      chartInstancePressure = new Chart(ctxPressure, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Pressure (hPa)',
+            data: pressures,
+            borderColor: 'green',
+            yAxisID: 'y',
+            fill: false,
+            tension: 0.5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Pressure (hPa)'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true
+            }
+          }
+        }
+      });
+    }
+
+    // Load the CSV file corresponding to the given date string (YYYY-MM-DD)
+    function loadCSV(dateStr) {
+      const filename = `${dateStr}-bme280-data.csv`;
+      fetch(filename)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('File not found: ' + filename);
+          }
+          return response.text();
+        })
+        .then(text => {
+          const data = parseCSV(text);
+          if (data.length === 0) {
+            throw new Error('No data available for ' + dateStr);
+          }
+          renderChart(data);
+        })
+        .catch(error => {
+          console.error(error);
+          alert(error.message);
+        });
+    }
+
+    // Initialize the dashboard on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      const datePicker = document.getElementById('datePicker');
+      const currentDate = getCurrentDate();
+      datePicker.value = currentDate;
+      
+      // Load CSV data for the current day on initial load
+      loadCSV(currentDate);
+      
+      // When a new date is selected, load the corresponding CSV file
+      datePicker.addEventListener('change', (e) => {
+        loadCSV(e.target.value);
+      });
+    });
+
+    function loadIPData() {
+    fetch("JakPi") // Replace with your actual file path
+      .then(response => {
+        if (!response.ok) {
+          throw new Error("Failed to load IP file");
+        }
+        return response.text();
+      })
+      .then(text => {
+        const lines = text.trim().split("\n"); // Split into lines
+        if (lines.length >= 2) {
+          document.getElementById("ipUpdate").textContent = lines[0]; // Timestamp
+          document.getElementById("ipAddress").textContent = lines[1]; // IP Address
+        } else {
+          document.getElementById("ipUpdate").textContent = "Invalid file format";
+          document.getElementById("ipAddress").textContent = "Invalid file format";
+        }
+      })
+      .catch(error => {
+        console.error("Error loading IP data:", error);
+        document.getElementById("ipUpdate").textContent = "Error loading data";
+        document.getElementById("ipAddress").textContent = "Error loading data";
+      });
+  }
+
+  // Run the function on page load
+  document.addEventListener("DOMContentLoaded", loadIPData);
+  </script>
+</body>
+</html>
