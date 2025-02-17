@@ -75,6 +75,30 @@
       return data;
     }
 
+    function movingAverage(data, windowSize) {
+      let averagedData = [];
+      for (let i = 0; i < data.length; i++) {
+        let start = Math.max(0, i - windowSize + 1); // Ensures start is within bounds
+        let subset = data.slice(start, i + 1); // Take subset of data within window
+        let sum = subset.reduce((acc, val) => acc + val, 0);
+        averagedData.push(sum / subset.length); // Compute average
+      }
+      return averagedData;
+    }
+
+    function exponentialMovingAverage(data, windowSize) {
+      if (data.length === 0) return [];
+
+      let emaData = [];
+      let k = 2 / (windowSize + 1); // Smoothing factor
+      emaData[0] = data[0]; // First EMA is the first data point
+
+      for (let i = 1; i < data.length; i++) {
+        emaData[i] = (data[i] * k) + (emaData[i - 1] * (1 - k));
+      }
+      return emaData;
+    }
+
     // Global chart instance to allow updates
     let chartInstanceTemperature = null;
     let chartInstanceHumidity = null;
@@ -87,6 +111,9 @@
       const temperatures = data.map(entry => entry.temperature);
       const pressures = data.map(entry => entry.pressure);
       const humidities = data.map(entry => entry.humidity);
+      const temperaturesEMA = exponentialMovingAverage(data.map(entry => entry.temperature), 15);
+      const pressuresEMA = exponentialMovingAverage(data.map(entry => entry.pressure), 15);
+      const humiditiesEMA = exponentialMovingAverage(data.map(entry => entry.humidity), 15);
       
       const ctxTemperature = document.getElementById('dataChartTemperature').getContext('2d');
       const ctxHumidity = document.getElementById('dataChartHumidity').getContext('2d');
@@ -110,12 +137,22 @@
           datasets: [{
             label: 'Temperature (°C)',
             data: temperatures,
-            borderColor: 'red',
+            borderColor: 'rgba(255,0,0,0.25)',
             yAxisID: 'y',
             fill: false,
             borderWidth: 2,
             pointRadius: 0,
             tension: 0.5
+          },
+          {
+            label: 'Temperature (°C) 15min Exponential Moving Average',
+            data: temperaturesEMA,
+            borderColor: 'red',
+            yAxisID: 'y',
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4
           }]
         },
         options: {
@@ -146,12 +183,22 @@
           datasets: [{
             label: 'Humidity (%)',
             data: humidities,
-            borderColor: 'blue',
+            borderColor: 'rgb(0,0,255,0.25)',
             yAxisID: 'y',
             fill: false,
             borderWidth: 2,
             pointRadius: 0,
             tension: 0.5
+          },
+          {
+            label: 'Humidity (%) 15min Exponential Moving Average',
+            data: humiditiesEMA,
+            borderColor: 'blue',
+            yAxisID: 'y',
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4
           }]
         },
         options: {
@@ -182,12 +229,22 @@
           datasets: [{
             label: 'Pressure (hPa)',
             data: pressures,
-            borderColor: 'green',
+            borderColor: 'rgb(0,255,0,0.25)',
             yAxisID: 'y',
             fill: false,
             borderWidth: 2,
             pointRadius: 0,
             tension: 0.5
+          },
+          {
+            label: 'Pressure (hPa) 15min Exponential Moving Average',
+            data: pressuresEMA,
+            borderColor: 'green',
+            yAxisID: 'y',
+            fill: false,
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4
           }]
         },
         options: {
