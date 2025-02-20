@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BME280 Environmental Dashboard</title>
-  <script src="chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@^3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@^2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -31,7 +33,23 @@
   <div class="container">
     <div class="header">
       <h1>BME280 Environmental Dashboard</h1>
-      <input type="date" id="datePicker" style="height: 30px; width: 120px;" />
+      <div>
+        Reference Date:
+        <input type="date" id="datePicker" style="height: 30px; width: 120px;" />
+      </div>
+      <div>
+        Lookback:
+        <select id="lookbackPeriod" style="height: 30px; width: 150px;">
+          <option value="1">24 hrs</option>
+          <option value="2">48 hrs</option>
+          <option value="7">7 days</option>
+          <option value="14">14 days</option>
+          <option value="30">1 month</option>
+          <option value="90">3 months</option>
+          <option value="180">6 months</option>
+          <option value="365">12 months</option>
+        </select>
+      </div>
     </div>
     <div class="container">
       <p><strong><span id="ipAddress">87.74.153.59</span></strong> (<span id="ipUpdate">Sun Feb 16 16:24:01 GMT 2025</span>)</p>
@@ -44,7 +62,7 @@
   </div>
 
   <script>
-    // Utility function to get current date in YYYY-MM-DD format
+    // Utility function to get current date in yyyy-mm-dd format
     function getCurrentDate() {
       const today = new Date();
       const year = today.getFullYear();
@@ -76,14 +94,14 @@
     }
 
     function movingAverage(data, windowSize) {
-      let averagedData = [];
+      let averageddata = [];
       for (let i = 0; i < data.length; i++) {
         let start = Math.max(0, i - windowSize + 1); // Ensures start is within bounds
         let subset = data.slice(start, i + 1); // Take subset of data within window
         let sum = subset.reduce((acc, val) => acc + val, 0);
-        averagedData.push(sum / subset.length); // Compute average
+        averageddata.push(sum / subset.length); // Compute average
       }
-      return averagedData;
+      return averageddata;
     }
 
     function exponentialMovingAverage(data, windowSize) {
@@ -107,13 +125,13 @@
     // Function to render (or update) the chart using Chart.js
     function renderChart(data) {
       // Extract time labels (using the time part only)
-      const labels = data.map(entry => entry.datetime.split(' ')[1]);
+      const labels = data.map(entry => entry.datetime);
       const temperatures = data.map(entry => entry.temperature);
       const pressures = data.map(entry => entry.pressure);
       const humidities = data.map(entry => entry.humidity);
-      const temperaturesEMA = exponentialMovingAverage(data.map(entry => entry.temperature), 15);
-      const pressuresEMA = exponentialMovingAverage(data.map(entry => entry.pressure), 15);
-      const humiditiesEMA = exponentialMovingAverage(data.map(entry => entry.humidity), 15);
+      const temperaturesEMA = movingAverage(data.map(entry => entry.temperature), 15);
+      const pressuresEMA = movingAverage(data.map(entry => entry.pressure), 15);
+      const humiditiesEMA = movingAverage(data.map(entry => entry.humidity), 15);
       
       const ctxTemperature = document.getElementById('dataChartTemperature').getContext('2d');
       const ctxHumidity = document.getElementById('dataChartHumidity').getContext('2d');
@@ -140,12 +158,12 @@
             borderColor: 'rgba(255,0,0,0.25)',
             yAxisID: 'y',
             fill: false,
-            borderWidth: 2,
+            borderWidth: 1,
             pointRadius: 0,
             tension: 0.5
           },
           {
-            label: 'Temperature (°C) 15min Exponential Moving Average',
+            label: 'Temperature (°C) 15min Moving Average',
             data: temperaturesEMA,
             borderColor: 'red',
             yAxisID: 'y',
@@ -159,6 +177,19 @@
           responsive: true,
           maintainAspectRatio: false,
           scales: {
+            x: {
+              type: 'time',
+              time: {
+                parser: 'YYYY-MM-DD HH:mm:ss',
+                tooltipFormat: 'll HH:mm',
+                displayFormats: {
+                  hour: 'HH:mm',
+                  day: 'MMM D',
+                  week: 'MMM D',
+                  month: 'MMM YYYY'
+                }
+              }
+            },
             y: {
               type: 'linear',
               position: 'left',
@@ -186,12 +217,12 @@
             borderColor: 'rgb(0,0,255,0.25)',
             yAxisID: 'y',
             fill: false,
-            borderWidth: 2,
+            borderWidth: 1,
             pointRadius: 0,
             tension: 0.5
           },
           {
-            label: 'Humidity (%) 15min Exponential Moving Average',
+            label: 'Humidity (%) 15min Moving Average',
             data: humiditiesEMA,
             borderColor: 'blue',
             yAxisID: 'y',
@@ -205,6 +236,19 @@
           responsive: true,
           maintainAspectRatio: false,
           scales: {
+            x: {
+              type: 'time',
+              time: {
+                parser: 'YYYY-MM-DD HH:mm:ss',
+                tooltipFormat: 'll HH:mm',
+                displayFormats: {
+                  hour: 'HH:mm',
+                  day: 'MMM D',
+                  week: 'MMM D',
+                  month: 'MMM YYYY'
+                }
+              }
+            },
             y: {
               type: 'linear',
               position: 'left',
@@ -232,12 +276,12 @@
             borderColor: 'rgb(0,255,0,0.25)',
             yAxisID: 'y',
             fill: false,
-            borderWidth: 2,
+            borderWidth: 1,
             pointRadius: 0,
             tension: 0.5
           },
           {
-            label: 'Pressure (hPa) 15min Exponential Moving Average',
+            label: 'Pressure (hPa) 15min Moving Average',
             data: pressuresEMA,
             borderColor: 'green',
             yAxisID: 'y',
@@ -251,6 +295,19 @@
           responsive: true,
           maintainAspectRatio: false,
           scales: {
+            x: {
+              type: 'time',
+              time: {
+                parser: 'YYYY-MM-DD HH:mm:ss',
+                tooltipFormat: 'll HH:mm',
+                displayFormats: {
+                  hour: 'HH:mm',
+                  day: 'MMM D',
+                  week: 'MMM D',
+                  month: 'MMM YYYY'
+                }
+              }
+            },
             y: {
               type: 'linear',
               position: 'left',
@@ -269,22 +326,43 @@
       });
     }
 
-    // Load the CSV file corresponding to the given date string (YYYY-MM-DD)
-    function loadCSV(dateStr) {
-      const filename = `data/${dateStr}-bme280-data.csv`;
-      fetch(filename)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('File not found: ' + filename);
-          }
-          return response.text();
-        })
-        .then(text => {
-          const data = parseCSV(text);
+    // Load the CSV file corresponding to the given date string (yyyy-mm-dd)
+    function loadCSV(dateStr, lookbackDays) {
+      const promises = [];
+      const enddate = new Date(dateStr);
+      
+      for (let i = lookbackDays; i >= 0; i--) {
+        const date = new Date(enddate);
+        date.setDate(enddate.getDate() - i);
+        const year = date.getFullYear();
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const day = ('0' + date.getDate()).slice(-2);
+        const filename = `data/${year}-${month}-${day}-bme280-data.csv`;
+        
+        promises.push(
+          fetch(filename)
+            .then(response => {
+              if (!response.ok) {
+                console.warn('File not found: ' + filename);
+                return '';
+              }
+              return response.text();
+            })
+            .catch(error => {
+              console.warn('Error loading file: ' + filename, error);
+              return '';
+            })
+        );
+      }
+
+      Promise.all(promises)
+        .then(results => {
+          const data = results.flatMap(text => parseCSV(text));
           if (data.length === 0) {
-            throw new Error('No data available for ' + dateStr);
+            throw new Error('No data available for the selected period');
           }
           renderChart(data);
+          console.log(data);
         })
         .catch(error => {
           console.error(error);
@@ -295,15 +373,20 @@
     // Initialize the dashboard on page load
     document.addEventListener('DOMContentLoaded', () => {
       const datePicker = document.getElementById('datePicker');
+      const lookbackPeriod = document.getElementById('lookbackPeriod');
       const currentDate = getCurrentDate();
       datePicker.value = currentDate;
-      
+
       // Load CSV data for the current day on initial load
-      loadCSV(currentDate);
-      
-      // When a new date is selected, load the corresponding CSV file
-      datePicker.addEventListener('change', (e) => {
-        loadCSV(e.target.value);
+      loadCSV(currentDate, parseInt(lookbackPeriod.value));
+
+      // When a new date or lookback period is selected, load the corresponding CSV files
+      datePicker.addEventListener('change', () => {
+        loadCSV(datePicker.value, parseInt(lookbackPeriod.value));
+      });
+
+      lookbackPeriod.addEventListener('change', () => {
+        loadCSV(datePicker.value, parseInt(lookbackPeriod.value));
       });
     });
 
